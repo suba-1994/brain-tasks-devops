@@ -1,91 +1,276 @@
-DevOps Practice Project – Dist Directory
+**Mind Track Application Deployment – DevOps CI/CD Project**
 
-This repository contains the production-ready build files (dist folder) for DevOps practice and deployment exercises.
+**Project Overview**
 
-It is intentionally structured to help learners focus on CI/CD pipelines, hosting, containerization, and infrastructure setup rather than application development.
+This project demonstrates a complete end-to-end DevOps deployment workflow for the Mind Track application using AWS cloud-native services and Kubernetes orchestration.
 
-📁 What This Repository Contains
+The application repository contained only the production-ready dist/ directory, which represents the final compiled frontend build. Since the project already included the built application artifacts, no Node.js build process or package installation was required.
 
-dist/ – Compiled and production-ready static files
+The primary objective of this project was to implement a production-style CI/CD pipeline using Docker, Amazon ECR, Amazon EKS, AWS CodeBuild, AWS CodePipeline, and Kubernetes.
+--------------------------------------------------------------
+**Project Environment
+AWS Services Used**
 
-HTML
+Amazon EC2
+Amazon ECR
+Amazon EKS
+AWS CodeBuild
+AWS CodePipeline
+AWS CloudWatch
+IAM
 
-CSS
+**Tools and Technologies**
 
-JavaScript
+Docker
+Kubernetes
+kubectl
+eksctl
+GitHub
+Nginx
+AWS CLI
+**
+Application Repository**
 
-Assets (images, fonts, etc.)
+Original Repository Provided:
 
-These files are ready to deploy to:
+**Brain-Tasks-App Repository**
 
-Web servers (Nginx / Apache)
+The repository contained:
 
-Cloud platforms (AWS S3, Azure Blob, GCP Storage)
+**dist/
+README.md**
 
-Containerized environments (Docker + Nginx)
+Since the repository already included the production-ready build files, no package.json or application source code was required.
 
-Kubernetes clusters
+**Step 1 – EC2 Instance Setup**
 
-CI/CD pipeline demonstrations
+An Ubuntu EC2 instance was launched to configure the DevOps environment.
 
-🎯 Purpose of This Repository
+Instance Configuration
+Configuration	Value
+Operating System	Ubuntu
+Instance Type	t3.small
+Region	us-east-1
 
-This repository is designed for:
+Inbound security group rules configured:
 
-DevOps beginners
+Port 22 – SSH
+Port 80 – HTTP
+Port 443 – HTTPS
+Port 3000 – Application Testing
 
-CI/CD practice
+**Step 2 – DevOps Tools Installation**
 
-Deployment pipeline testing
+The following tools were installed and configured inside the EC2 instance:
 
-Docker & Kubernetes deployment exercises
+**Docker Installation**
 
-Web server configuration practice
+sudo apt install docker.io -y
 
-Reverse proxy and load balancer setup
+Docker service was started and enabled successfully.
 
-The goal is to simulate real-world deployment scenarios using already built application files.
+AWS CLI Installation
 
-❓ Why is there NO package.json?
+AWS CLI v2 was installed and configured using IAM user credentials.
 
-You may notice that this repository does not include:
+kubectl Installation
 
-package.json
+kubectl was installed for Kubernetes cluster management.
 
-node_modules
+eksctl Installation
 
-Source code (src/)
+eksctl was installed for Amazon EKS cluster creation and management.
 
-Build tools configuration
+**Step 3 – Repository Cloning**
 
-✅ Reason:
+The application repository was cloned inside the EC2 instance.
 
-This repository only contains the final production build output (dist), not the development source code.
+git clone https://github.com/Vennilavanguvi/Brain-Tasks-App.git
 
-In a typical project:
+**Step 4 – Docker Containerization**
 
-Developers write source code.
+A Dockerfile was manually created to containerize the application using Nginx.
 
-The project is built using tools like:
+Dockerfile
 
-Node.js
+FROM public.ecr.aws/nginx/nginx:alpine
 
-Webpack
+COPY dist/ /usr/share/nginx/html/
 
-Vite
+EXPOSE 80
 
-React (or other frameworks)
+CMD ["nginx", "-g", "daemon off;"]
 
-A dist/ folder is generated.
+**Step 5 – Local Docker Validation**
 
-Only the production build is deployed to servers.
+The Docker image was built locally using:
 
-This repository represents step 4 only.
+docker build -t brain-tasks-app .
 
-Since this is already the compiled output:
+The container was started successfully:
 
-No dependencies are required
+docker run -d -p 3000:80 --name brain-tasks-container brain-tasks-app
 
-No build process is required
+The application was verified successfully using the EC2 public IP:
 
-No package.json is needed
+**http://54.173.90.19:3000**
+
+**Step 6 – Amazon ECR Setup**
+
+An Amazon ECR private repository was created.
+
+Repository Name
+brain-tasks-app
+
+The Docker image was tagged and pushed successfully into Amazon ECR.
+
+Docker Tag Command
+docker tag brain-tasks-app:latest 691850985444.dkr.ecr.us-east-1.amazonaws.com/brain-tasks-app:latest
+Docker Push Command
+docker push 691850985444.dkr.ecr.us-east-1.amazonaws.com/brain-tasks-app:latest
+
+**Step 7 – Amazon EKS Cluster Creation**
+
+An Amazon EKS cluster was created using eksctl.
+
+Cluster Configuration
+Configuration	Value
+Cluster Name	trend-cluster
+Region	us-east-1
+Node Type	t3.small
+Node Count	2
+Cluster Creation Command
+
+eksctl create cluster \
+--name trend-cluster \
+--region us-east-1 \
+--nodes 2 \
+--node-type t3.small \
+--managed
+
+Cluster nodes were verified successfully using:
+
+kubectl get nodes
+
+**Step 8 – Kubernetes Deployment**
+
+**deployment.yaml**
+
+A Kubernetes deployment configuration file was created manually to deploy the application using the ECR Docker image.
+
+The deployment configuration included:
+
+Replica configuration
+Container image from ECR
+Port exposure
+Kubernetes labels
+service.yaml
+
+A Kubernetes LoadBalancer service was created to expose the application externally.
+
+type: LoadBalancer
+
+The application was successfully exposed using the AWS LoadBalancer URL.
+
+**Step 9 – AWS CodeBuild Integration**
+
+AWS CodeBuild was configured to automate:
+
+Docker image build
+Docker image tagging
+Docker image push to ECR
+Deployment to Amazon EKS
+buildspec.yml Configuration
+
+The buildspec.yml file was manually configured with Docker build and Kubernetes deployment automation.
+
+Docker Build Process
+docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
+Docker Tag Process
+docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+Docker Push Process
+docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+EKS Deployment Process
+aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $CLUSTER_NAME
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+kubectl rollout restart deployment brain-tasks-app
+
+This implementation confirmed that Docker image build, push, and EKS deployment were fully automated using AWS CodeBuild.
+
+**Step 10 – IAM Role Mapping for EKS Access**
+
+The AWS CodeBuild service role was granted Kubernetes administrative access using IAM identity mapping.
+
+IAM Identity Mapping Command
+eksctl create iamidentitymapping \
+--cluster trend-cluster \
+--region us-east-1 \
+--arn arn:aws:iam::691850985444:role/codebuild-brain-tasks-build-service-role \
+--group system:masters \
+--username admin
+
+This allowed CodeBuild to execute kubectl commands inside the EKS cluster.
+
+**Step 11 – AWS CodePipeline Automation**
+
+AWS CodePipeline was configured for complete CI/CD automation.
+
+Pipeline Flow
+GitHub
+   ↓
+AWS CodePipeline
+   ↓
+AWS CodeBuild
+   ↓
+Docker Build
+   ↓
+Amazon ECR
+   ↓
+Amazon EKS
+   ↓
+Kubernetes Deployment
+----------------------------------------------
+Whenever code is pushed to GitHub:
+
+CodePipeline automatically detects changes
+CodeBuild starts the build process
+Docker image is built automatically
+Docker image is pushed to ECR
+Kubernetes deployment is updated inside EKS
+
+**Step 12 – CloudWatch Monitoring**
+
+AWS CloudWatch Logs were used for monitoring:
+
+Docker build logs
+Kubernetes deployment logs
+ECR push logs
+Build failures
+CI/CD execution tracking
+
+CodeBuild execution logs were successfully monitored through CloudWatch Log Groups.
+
+Kubernetes Verification
+Verify Kubernetes Pods
+kubectl get pods
+Verify Kubernetes Services
+kubectl get svc
+Verify Kubernetes Deployments
+kubectl get deployment
+
+All Kubernetes resources were verified successfully and were in running state.
+
+**Final Project Outcome**
+
+The Mind Track application was successfully:
+
+Containerized using Docker
+Stored in Amazon ECR
+Deployed on Amazon EKS
+Automated using AWS CodeBuild
+Integrated with AWS CodePipeline
+Exposed using Kubernetes LoadBalancer
+Monitored using AWS CloudWatch
+
+The final deployment architecture implemented a complete CI/CD automation pipeline from GitHub to Kubernetes deployment on Amazon EKS.
